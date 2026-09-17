@@ -1048,6 +1048,7 @@ export default {
       bedrockApiKeyLeaveEmpty: 'Leave empty to keep current key',
       apiKeyIsRequired: 'API Key is required',
       leaveEmptyToKeep: 'Leave empty to keep current key',
+      multiApiKeysHint: 'Multiple keys supported (one per line, comma-separated also accepted). Requests rotate across them; a failing key is cooled down individually.',
       // Upstream type
       upstream: {
         baseUrl: 'Upstream Base URL',

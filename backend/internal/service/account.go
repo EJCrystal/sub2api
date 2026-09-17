@@ -1747,7 +1747,7 @@ func (a *Account) GetOpenAIApiKey() string {
 	if !a.IsOpenAIApiKey() {
 		return ""
 	}
-	return a.GetCredential("api_key")
+	return PickPooledAPIKey(a)
 }
 
 // GetOpenAIProtocolAPIKey 返回 OpenAI 协议族 APIKey 账号的密钥。
@@ -1763,7 +1763,7 @@ func (a *Account) GetOpenAIProtocolAPIKey() string {
 		if a.Type != AccountTypeAPIKey {
 			return ""
 		}
-		return a.GetCredential("api_key")
+		return PickPooledAPIKey(a)
 	}
 	return a.GetOpenAIApiKey()
 }

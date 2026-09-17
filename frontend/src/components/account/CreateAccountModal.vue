@@ -1409,14 +1409,15 @@
         />
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKeyRequired') }}</label>
-          <input
+          <textarea
             v-model="apiKeyValue"
-            type="password"
+            rows="2"
             required
             class="input font-mono"
             :placeholder="apiKeyValuePlaceholder"
           />
           <p v-if="apiKeyHint" class="input-hint">{{ apiKeyHint }}</p>
+          <p class="input-hint">{{ t('admin.accounts.multiApiKeysHint') }}</p>
         </div>
 
         <!-- 上游倍率自动探测：全部 API-key 平台可用（所在区块已限定 apikey 类型） -->
@@ -3900,6 +3901,7 @@ import {
   isValidWildcardPattern
 } from '@/composables/useModelWhitelist'
 import { adminAPI } from '@/api/admin'
+import { parseApiKeysInput } from '@/utils/parseApiKeys'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import {
   useAccountOAuth,
@@ -4151,6 +4153,8 @@ const accountCategory = ref<'oauth-based' | 'apikey' | 'bedrock' | 'service_acco
 const addMethod = ref<AddMethod>('oauth') // For oauth-based: 'oauth' or 'setup-token'
 const apiKeyBaseUrl = ref('https://api.anthropic.com')
 const apiKeyValue = ref('')
+// 多 Key 输入解析：>1 个时写入 credentials.api_keys（多 Key 池，请求轮换 + key 级失败冷却）
+const parsedApiKeys = computed(() => parseApiKeysInput(apiKeyValue.value))
 const upstreamBillingAutoProbeEnabled = ref(true)
 
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）账号类型、API 协议与端点 ──
@@ -4335,11 +4339,13 @@ const syncPreviewCredentials = computed(() => {
     allowedModels.value,
     modelMappings.value
   )
+  const keys = parsedApiKeys.value
   return {
     platform: form.platform,
     type: form.type,
     base_url: baseUrl || undefined,
-    api_key: apiKeyValue.value,
+    api_key: keys[0],
+    ...(keys.length > 1 ? { api_keys: keys } : {}),
     ...(modelMapping ? { model_mapping: modelMapping } : {})
   }
 })
@@ -4362,6 +4368,10 @@ const DEFAULT_POOL_MODE_RETRY_COUNT = 3
 const MAX_POOL_MODE_RETRY_COUNT = 10
 const DEFAULT_POOL_MODE_RETRY_STATUS_CODES = [401, 403, 429]
 const poolModeEnabled = ref(false)
+// 多 Key 池：同一请求内失败换 Key 依赖池模式的同账号重试；输入多个 Key 时自动启用（仍可手动关闭）。
+watch(parsedApiKeys, (keys) => {
+  if (keys.length > 1) poolModeEnabled.value = true
+})
 const poolModeRetryCount = ref(DEFAULT_POOL_MODE_RETRY_COUNT)
 const poolModeRetryStatusCodesInput = ref('')
 
@@ -5758,7 +5768,8 @@ const handleSubmit = async () => {
   }
 
   // For apikey type, create directly
-  if (!apiKeyValue.value.trim()) {
+  const keys = parsedApiKeys.value
+  if (keys.length === 0) {
     appStore.showError(t('admin.accounts.pleaseEnterApiKey'))
     return
   }
@@ -5776,7 +5787,10 @@ const handleSubmit = async () => {
   // Build credentials with optional model mapping
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
-    api_key: apiKeyValue.value.trim()
+    api_key: keys[0]
+  }
+  if (keys.length > 1) {
+    credentials.api_keys = keys
   }
   if (form.platform === 'gemini') {
     credentials.tier_id = geminiTierAIStudio.value

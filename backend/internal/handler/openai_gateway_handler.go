@@ -889,6 +889,8 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
+					// 多 key 池账号：冷却本次使用的上游 key，重试/后续请求自动换 key。
+					service.CooldownPooledAPIKey(account.ID, failoverErr.StatusCode)
 					// 池模式：同账号重试
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := effectiveSameAccountRetryLimit(failoverErr, account)
@@ -1445,6 +1447,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 						h.handleAnthropicFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
+					// 多 key 池账号：冷却本次使用的上游 key，重试/后续请求自动换 key。
+					service.CooldownPooledAPIKey(account.ID, failoverErr.StatusCode)
 					// 池模式：同账号重试
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := effectiveSameAccountRetryLimit(failoverErr, account)

@@ -208,6 +208,10 @@ func (s *FailoverState) HandleFailoverError(
 		return FailoverExhausted
 	}
 
+	// 多 key 池账号：冷却本次请求使用的上游 key，使同账号重试/后续请求自动换 key。
+	// 单 key 账号无 lastPick 记录，此调用为 no-op。
+	service.CooldownPooledAPIKey(accountID, failoverErr.StatusCode)
+
 	// 同账号重试不算切换账号，粘性会话仅在实际切换时强制缓存计费。
 	retryCount := s.SameAccountRetryCount[accountID]
 	sameAccountRetry := sameAccountRetryAllowed(failoverErr, retryCount, retryLimit)
