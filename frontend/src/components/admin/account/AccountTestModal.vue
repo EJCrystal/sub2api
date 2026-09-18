@@ -99,7 +99,7 @@
       </p>
 
       <TextArea
-        v-else
+        v-else-if="!isGrokAccount"
         v-model="testPrompt"
         :label="t('admin.accounts.testPromptLabel')"
         :placeholder="t('admin.accounts.testPromptPlaceholder')"
@@ -533,7 +533,10 @@ const supportsPromptInput = computed(() => {
 })
 
 // The generic (non-image) prompt box feeds the text probe on every platform.
-const usesGenericTestPrompt = computed(() => !supportsPromptInput.value)
+// Grok text probes build a quota-check body and ignore the prompt, so no box.
+const usesGenericTestPrompt = computed(
+  () => !isGrokAccount.value && !supportsPromptInput.value
+)
 
 const supportsImageUpload = computed(
   () => isGrokAccount.value && (grokTestMode.value === 'image' || grokTestMode.value === 'video')
