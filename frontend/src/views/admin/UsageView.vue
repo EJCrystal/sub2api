@@ -85,6 +85,14 @@
 
         <UsageFilters v-model="filters" ref="usageFiltersRef" flat :mode="activeTab" class="border-b border-gray-100 dark:border-dark-700/50" :start-date="startDate" :end-date="endDate" :exporting="exporting" :model-options="modelNameOptions" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
           <template #after-reset>
+            <AutoRefreshButton
+              :enabled="autoRefresh.enabled.value"
+              :interval-seconds="autoRefresh.intervalSeconds.value"
+              :countdown="autoRefresh.countdown.value"
+              :intervals="autoRefresh.intervals"
+              @update:enabled="autoRefresh.setEnabled"
+              @update:interval="autoRefresh.setInterval"
+            />
             <div v-if="activeTab !== 'ranking'" class="relative" ref="columnDropdownRef">
               <button
                 data-testid="usage-column-settings"
@@ -190,6 +198,8 @@ import { saveAs } from 'file-saver'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'; import { adminAPI } from '@/api/admin'; import { adminUsageAPI } from '@/api/admin/usage'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshButton from '@/components/common/AutoRefreshButton.vue'
 import { formatReasoningEffort } from '@/utils/format'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
 import AppLayout from '@/components/layout/AppLayout.vue'; import Pagination from '@/components/common/Pagination.vue'; import Select from '@/components/common/Select.vue'; import DateRangePicker from '@/components/common/DateRangePicker.vue'
@@ -540,6 +550,14 @@ const refreshData = () => {
   if (activeTab.value === 'errors') loadAdminErrors()
   if (rankingMounted.value) rankingRef.value?.reload()
 }
+
+const autoRefresh = useAutoRefresh({
+  storageKey: 'admin-usage-view-auto-refresh',
+  intervals: [5, 10, 15, 30, 60] as const,
+  defaultInterval: 10,
+  onRefresh: refreshData,
+  shouldPause: () => document.hidden,
+})
 const resetFilters = () => {
   const range = getLast24HoursRangeDates()
   startDate.value = range.start

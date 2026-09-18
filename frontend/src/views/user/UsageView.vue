@@ -126,6 +126,14 @@
           </div>
 
           <div class="flex w-full flex-wrap items-center justify-end gap-3 sm:w-auto">
+            <AutoRefreshButton
+              :enabled="autoRefresh.enabled.value"
+              :interval-seconds="autoRefresh.intervalSeconds.value"
+              :countdown="autoRefresh.countdown.value"
+              :intervals="autoRefresh.intervals"
+              @update:enabled="autoRefresh.setEnabled"
+              @update:interval="autoRefresh.setInterval"
+            />
             <button type="button" @click="refreshData" :disabled="activeTab === 'errors' ? errorLoading : loading" class="btn btn-secondary">
               {{ t('common.refresh') }}
             </button>
@@ -237,6 +245,8 @@ import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import Icon from '@/components/icons/Icon.vue'
 import UserErrorRequestsTable from '@/components/user/UserErrorRequestsTable.vue'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
+import AutoRefreshButton from '@/components/common/AutoRefreshButton.vue'
 import { formatReasoningEffort } from '@/utils/format'
 import { getBillingModeLabel, getDisplayBillingMode as resolveDisplayBillingMode } from '@/utils/billingMode'
 import { resolveUsageRequestType, requestTypeToLegacyStream } from '@/utils/usageRequestType'
@@ -556,6 +566,14 @@ const refreshData = () => {
   void loadChartData()
   if (activeTab.value === 'errors') void loadErrors()
 }
+
+const autoRefresh = useAutoRefresh({
+  storageKey: 'usage-view-auto-refresh',
+  intervals: [5, 10, 15, 30, 60] as const,
+  defaultInterval: 10,
+  onRefresh: refreshData,
+  shouldPause: () => document.hidden,
+})
 
 const resetFilters = () => {
   const range = getLast24HoursRangeDates()

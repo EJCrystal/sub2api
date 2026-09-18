@@ -34,6 +34,10 @@ export function useAutoRefresh(options: UseAutoRefreshOptions) {
       const iv = Number(parsed.interval_seconds)
       if (intervals.includes(iv as any)) intervalSeconds.value = iv
     } catch { /* ignore */ }
+    if (enabled.value) {
+      start()
+      resetCountdown()
+    }
   }
 
   function saveToStorage() {
