@@ -6277,6 +6277,23 @@
 	                <Toggle v-model="form.backend_mode_enabled" />
 	              </div>
 
+              <div>
+                <label
+                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  {{ t("admin.settings.site.accountTestPrompt") }}
+                </label>
+                <input
+                  v-model="form.account_test_prompt"
+                  type="text"
+                  class="input"
+                  :placeholder="t('admin.settings.site.accountTestPromptPlaceholder')"
+                />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.site.accountTestPromptHint") }}
+                </p>
+              </div>
+
 	              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <label
@@ -9630,6 +9647,7 @@ const form = reactive<SettingsForm>({
   home_content: "",
   compact_home_enabled: false,
   backend_mode_enabled: false,
+  account_test_prompt: 'hi',
   hide_ccs_import_button: false,
   payment_enabled: false,
   risk_control_enabled: false,
@@ -10890,6 +10908,7 @@ async function loadSettings() {
       settings.account_scheduling_thresholds,
     );
     form.backend_mode_enabled = settings.backend_mode_enabled;
+  form.account_test_prompt = settings.account_test_prompt ?? 'hi';
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
     );
@@ -11287,6 +11306,7 @@ async function saveSettings() {
       home_content: form.home_content,
       compact_home_enabled: form.compact_home_enabled,
       backend_mode_enabled: form.backend_mode_enabled,
+      account_test_prompt: form.account_test_prompt.trim() || 'hi',
       hide_ccs_import_button: form.hide_ccs_import_button,
       table_default_page_size: form.table_default_page_size,
       table_page_size_options: form.table_page_size_options,

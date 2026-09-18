@@ -249,6 +249,7 @@ type UpdateSettingsRequest struct {
 	EnableCCHSigning                       *bool   `json:"enable_cch_signing"`
 	EnableClaudeOAuthSystemPromptInjection *bool   `json:"enable_claude_oauth_system_prompt_injection"`
 	ClaudeOAuthSystemPrompt                *string `json:"claude_oauth_system_prompt"`
+	AccountTestPrompt                      *string `json:"account_test_prompt"`
 	ClaudeOAuthSystemPromptBlocks          *string `json:"claude_oauth_system_prompt_blocks"`
 	EnableAnthropicCacheTTL1hInjection     *bool   `json:"enable_anthropic_cache_ttl_1h_injection"`
 	RewriteMessageCacheControl             *bool   `json:"rewrite_message_cache_control"`
@@ -1718,6 +1719,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ClaudeOAuthSystemPrompt
 		}(),
+		AccountTestPrompt: func() string {
+			if req.AccountTestPrompt != nil {
+				return *req.AccountTestPrompt
+			}
+			return previousSettings.AccountTestPrompt
+		}(),
 		ClaudeOAuthSystemPromptBlocks: func() string {
 			if req.ClaudeOAuthSystemPromptBlocks != nil {
 				return *req.ClaudeOAuthSystemPromptBlocks
@@ -2301,6 +2308,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		EnableCCHSigning:                                       updatedSettings.EnableCCHSigning,
 		EnableClaudeOAuthSystemPromptInjection:                 updatedSettings.EnableClaudeOAuthSystemPromptInjection,
 		ClaudeOAuthSystemPrompt:                                updatedSettings.ClaudeOAuthSystemPrompt,
+		AccountTestPrompt:                                      updatedSettings.AccountTestPrompt,
 		ClaudeOAuthSystemPromptBlocks:                          updatedSettings.ClaudeOAuthSystemPromptBlocks,
 		EnableAnthropicCacheTTL1hInjection:                     updatedSettings.EnableAnthropicCacheTTL1hInjection,
 		RewriteMessageCacheControl:                             updatedSettings.RewriteMessageCacheControl,

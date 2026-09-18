@@ -98,15 +98,12 @@
         {{ promptInputHint }}
       </p>
 
-      <TextArea
-        v-else-if="!isGrokAccount"
-        v-model="testPrompt"
-        :label="t('admin.accounts.testPromptLabel')"
-        :placeholder="t('admin.accounts.testPromptPlaceholder')"
-        :hint="t('admin.accounts.testPromptHint')"
-        :disabled="status === 'connecting'"
-        rows="2"
-      />
+      <p
+        v-else-if="usesGenericTestPrompt"
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
+        {{ t('admin.accounts.globalTestPromptInUse') }}
+      </p>
 
       <Input
         v-model="testUserAgent"
@@ -333,7 +330,7 @@
           <Icon name="chat" size="sm" :stroke-width="2" />
           {{
             usesGenericTestPrompt
-              ? t('admin.accounts.testPrompt', { prompt: testPrompt.trim() || 'hi' })
+              ? t('admin.accounts.globalTestPromptBadge')
               : testModeSummary
           }}
         </span>
@@ -1008,7 +1005,7 @@ const handleEvent = (event: {
                       : t('admin.accounts.sendingTestMessage')
           : supportsImageTest.value
             ? t('admin.accounts.sendingImageRequest')
-            : t('admin.accounts.sendingTestMessage', { prompt: testPrompt.value.trim() || 'hi' }),
+            : t('admin.accounts.sendingGlobalTestPrompt'),
         'text-gray-400'
       )
       addLine('', 'text-gray-300')

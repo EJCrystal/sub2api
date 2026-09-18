@@ -869,6 +869,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.EnableClaudeOAuthSystemPromptInjection = true
 	}
 	result.ClaudeOAuthSystemPrompt = settings[SettingKeyClaudeOAuthSystemPrompt]
+	result.AccountTestPrompt = settings[SettingKeyAccountTestPrompt]
 	result.ClaudeOAuthSystemPromptBlocks = settings[SettingKeyClaudeOAuthSystemPromptBlocks]
 	result.EnableAnthropicCacheTTL1hInjection = settings[SettingKeyEnableAnthropicCacheTTL1hInjection] == "true"
 	if v, ok := settings[SettingKeyRewriteMessageCacheControl]; ok && v != "" {

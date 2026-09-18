@@ -208,6 +208,7 @@ type SystemSettings struct {
 	EnableCCHSigning                       bool   `json:"enable_cch_signing"`
 	EnableClaudeOAuthSystemPromptInjection bool   `json:"enable_claude_oauth_system_prompt_injection"`
 	ClaudeOAuthSystemPrompt                string `json:"claude_oauth_system_prompt"`
+	AccountTestPrompt                      string `json:"account_test_prompt"`
 	ClaudeOAuthSystemPromptBlocks          string `json:"claude_oauth_system_prompt_blocks"`
 	EnableAnthropicCacheTTL1hInjection     bool   `json:"enable_anthropic_cache_ttl_1h_injection"`
 	RewriteMessageCacheControl             bool   `json:"rewrite_message_cache_control"`

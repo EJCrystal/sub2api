@@ -488,6 +488,7 @@ export interface SystemSettings {
   table_default_page_size: number;
   table_page_size_options: number[];
   backend_mode_enabled: boolean;
+  account_test_prompt: string;
   custom_menu_items: CustomMenuItem[];
   custom_endpoints: CustomEndpoint[];
   // SMTP settings
@@ -832,6 +833,7 @@ export interface UpdateSettingsRequest {
   table_default_page_size?: number;
   table_page_size_options?: number[];
   backend_mode_enabled?: boolean;
+  account_test_prompt?: string;
   custom_menu_items?: CustomMenuItem[];
   custom_endpoints?: CustomEndpoint[];
   smtp_host?: string;

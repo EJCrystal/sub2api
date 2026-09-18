@@ -294,6 +294,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		EnableCCHSigning:                                       settings.EnableCCHSigning,
 		EnableClaudeOAuthSystemPromptInjection:                 settings.EnableClaudeOAuthSystemPromptInjection,
 		ClaudeOAuthSystemPrompt:                                settings.ClaudeOAuthSystemPrompt,
+		AccountTestPrompt:                                      settings.AccountTestPrompt,
 		ClaudeOAuthSystemPromptBlocks:                          settings.ClaudeOAuthSystemPromptBlocks,
 		EnableAnthropicCacheTTL1hInjection:                     settings.EnableAnthropicCacheTTL1hInjection,
 		RewriteMessageCacheControl:                             settings.RewriteMessageCacheControl,

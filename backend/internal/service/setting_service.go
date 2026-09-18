@@ -72,6 +72,24 @@ func (s *SettingService) GetGrokDefaultBaseURL(ctx context.Context) string {
 	return GrokBaseURLForMode(s.GetGrokDefaultBaseURLMode(ctx))
 }
 
+// GetAccountTestPrompt returns the global prompt used by account connection
+// tests (text mode). Empty value falls back to the built-in default "hi".
+func (s *SettingService) GetAccountTestPrompt(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return defaultAccountTestPrompt
+	}
+	dbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), gatewayForwardingDBTimeout)
+	defer cancel()
+	raw, err := s.settingRepo.GetValue(dbCtx, SettingKeyAccountTestPrompt)
+	if err != nil {
+		return defaultAccountTestPrompt
+	}
+	if p := strings.TrimSpace(raw); p != "" {
+		return p
+	}
+	return defaultAccountTestPrompt
+}
+
 func (s *SettingService) ResolveGrokBaseURL(ctx context.Context, account *Account) string {
 	def := xai.DefaultCLIBaseURL
 	if s != nil {

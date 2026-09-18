@@ -100,6 +100,7 @@ const maxAccountTestMediaBytes = 8 << 20
 
 const (
 	defaultGeminiTextTestPrompt  = "hi"
+	defaultAccountTestPrompt     = "hi"
 	defaultGeminiImageTestPrompt = "Generate a cute orange cat astronaut sticker on a clean pastel background."
 	defaultOpenAIImageTestPrompt = "Generate a cute orange cat astronaut sticker on a clean pastel background."
 	defaultGrokImageTestPrompt   = "Generate a cute orange cat astronaut sticker on a clean pastel background."
@@ -385,6 +386,12 @@ func createTestPayload(modelID string, prompt string) (map[string]any, error) {
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
 	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
+
+	// 文本测试提示词：入站为空时回退全局设置（默认 "hi"）。
+	// 图片/视频/搜索/TTS 的默认是模式专用值，不走这里（platform 方法内部各自处理）。
+	if strings.TrimSpace(prompt) == "" {
+		prompt = s.settingService.GetAccountTestPrompt(ctx)
+	}
 
 	// 测试内自定义 UA：从入站请求透传到出站边界（doOpenAIAccountTestUpstream）。
 	if userAgent := strings.TrimSpace(testOpts.UserAgent); userAgent != "" {

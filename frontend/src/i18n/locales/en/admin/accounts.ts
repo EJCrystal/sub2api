@@ -1499,6 +1499,10 @@ export default {
       selectTestModel: 'Select Test Model',
       testModel: 'Test model',
       testPrompt: 'Prompt: "{prompt}"',
+      globalTestPromptBadge: 'Test prompt: global setting',
+      globalTestPromptInUse:
+        'The test prompt comes from the global setting under System Settings → General. Edit it there.',
+      sendingGlobalTestPrompt: 'Sending global test prompt...',
       testPromptLabel: 'Test prompt',
       testPromptPlaceholder: 'Example: Reply only OK',
       testPromptHint: 'Leave empty to use the default prompt "hi".',

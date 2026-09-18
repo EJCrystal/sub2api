@@ -1555,6 +1555,10 @@ export default {
       selectTestModel: '选择测试模型',
       testModel: '测试模型',
       testPrompt: '提示词："{prompt}"',
+      globalTestPromptBadge: '测试提示词：全局设置',
+      globalTestPromptInUse:
+        '测试提示词使用系统设置-通用设置中的全局配置，如需修改请前往系统设置。',
+      sendingGlobalTestPrompt: '发送全局测试提示词...',
       testPromptLabel: '测试提示词',
       testPromptPlaceholder: '例如：Reply only OK',
       testPromptHint: '留空使用默认提示词 hi。',

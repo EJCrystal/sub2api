@@ -678,6 +678,8 @@ const (
 	SettingKeyEnableClaudeOAuthSystemPromptInjection = "enable_claude_oauth_system_prompt_injection"
 	// SettingKeyClaudeOAuthSystemPrompt Claude OAuth mimic 路径注入的通用扩展 system prompt（空值使用内置默认）
 	SettingKeyClaudeOAuthSystemPrompt = "claude_oauth_system_prompt"
+	// SettingKeyAccountTestPrompt 账号连接测试（文本模式）的提示词（空值使用内置默认 "hi"）
+	SettingKeyAccountTestPrompt = "account_test_prompt"
 	// SettingKeyClaudeOAuthSystemPromptBlocks Claude OAuth mimic 路径注入的 system blocks JSON 配置（空值使用内置默认）
 	SettingKeyClaudeOAuthSystemPromptBlocks = "claude_oauth_system_prompt_blocks"
 	// SettingKeyEnableAnthropicCacheTTL1hInjection 是否对 Anthropic OAuth/SetupToken 请求体注入 1h cache_control ttl（默认 false）
