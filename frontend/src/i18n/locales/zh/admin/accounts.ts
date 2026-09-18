@@ -1557,7 +1557,7 @@ export default {
       testPrompt: '提示词："{prompt}"',
       testPromptLabel: '测试提示词',
       testPromptPlaceholder: '例如：Reply only OK',
-      testPromptHint: '留空使用默认提示词 hi；仅文本测试生效（生图/生视频模型用对应的提示词输入框）。',
+      testPromptHint: '留空使用默认提示词 hi。',
       testUserAgentLabel: 'User-Agent（可选）',
       testUserAgentPlaceholder: '例如：codex-tui/0.154.0 (Windows 10.0.26200; x86_64)',
       testUserAgentHint: '仅覆盖本次测试请求的出站 UA，不写回账号配置；留空使用账号的 header_overrides 或系统默认身份。',

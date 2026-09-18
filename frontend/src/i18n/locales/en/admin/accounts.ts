@@ -1501,7 +1501,7 @@ export default {
       testPrompt: 'Prompt: "{prompt}"',
       testPromptLabel: 'Test prompt',
       testPromptPlaceholder: 'Example: Reply only OK',
-      testPromptHint: 'Leave empty to use the default prompt "hi". Text tests only (image/video models use their own prompt fields).',
+      testPromptHint: 'Leave empty to use the default prompt "hi".',
       testUserAgentLabel: 'User-Agent (optional)',
       testUserAgentPlaceholder: 'Example: codex-tui/0.154.0 (Windows 10.0.26200; x86_64)',
       testUserAgentHint: 'Overrides the outbound UA for this test only; it is not saved to the account. Empty = account header_overrides / default identity.',
