@@ -45,7 +45,7 @@ func (s *AccountTestService) testCNProviderAdaptiveConnection(c *gin.Context, ac
 	}
 
 	if account.SupportsNativeCNResponses() {
-		if err := s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken); err != nil {
+		if err := s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken, prompt); err != nil {
 			return err
 		}
 	}
@@ -153,7 +153,7 @@ func (s *AccountTestService) processCNProviderAdaptiveAnthropicStream(c *gin.Con
 	}
 }
 
-func (s *AccountTestService) testCNProviderAdaptiveResponsesConnection(c *gin.Context, account *Account, testModelID string, authToken string) error {
+func (s *AccountTestService) testCNProviderAdaptiveResponsesConnection(c *gin.Context, account *Account, testModelID string, authToken string, prompt string) error {
 	ctx := c.Request.Context()
 	baseURL, err := s.validateUpstreamBaseURL(account.GetCNProtocolBaseURL(APIProtocolResponses))
 	if err != nil {
@@ -161,7 +161,7 @@ func (s *AccountTestService) testCNProviderAdaptiveResponsesConnection(c *gin.Co
 	}
 	apiURL := buildOpenAIResponsesURLForPlatform(account.Platform, baseURL)
 
-	payload := createOpenAITestPayload(testModelID, false)
+	payload := createOpenAITestPayload(testModelID, false, prompt)
 	// DeepSeek / Kimi native Responses endpoints are stateless and do not need
 	// the OpenAI probe's synthetic instructions.
 	delete(payload, "instructions")

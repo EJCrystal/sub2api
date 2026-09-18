@@ -1245,6 +1245,8 @@ type TestAccountRequest struct {
 	ModelID string `json:"model_id"`
 	Prompt  string `json:"prompt"`
 	Mode    string `json:"mode"`
+	// UserAgent 仅覆盖本次测试请求的出站 User-Agent（不写入账号配置）。
+	UserAgent string `json:"user_agent"`
 	// Optional media for Grok (and future) real generation tests.
 	// ImageDataURL / AudioDataURL are data:<mime>;base64,... payloads.
 	ImageDataURL string `json:"image_data_url"`
@@ -1281,6 +1283,7 @@ func (h *AccountHandler) Test(c *gin.Context) {
 	opts := service.AccountTestOptions{
 		ImageDataURL: req.ImageDataURL,
 		AudioDataURL: req.AudioDataURL,
+		UserAgent:    req.UserAgent,
 	}
 
 	// Use AccountTestService to test the account with SSE streaming

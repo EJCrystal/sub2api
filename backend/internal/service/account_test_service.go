@@ -70,6 +70,22 @@ type TestEvent struct {
 type AccountTestOptions struct {
 	ImageDataURL string
 	AudioDataURL string
+	// UserAgent 是管理员在测试弹窗里临时指定的出站 User-Agent（不落库、只影响本次测试），
+	// 用于在保存到账号 header_overrides 之前先验证上游按客户端 UA 的门控。
+	UserAgent string
+}
+
+// accountTestUserAgentContextKey 让 UserAgent 覆盖能穿过各平台测试函数直达出站边界，
+// 避免为它改一圈函数签名（与 agentIdentityTaskRecovery 的 ctx 传参方式一致）。
+type accountTestUserAgentContextKey struct{}
+
+func withAccountTestUserAgent(ctx context.Context, userAgent string) context.Context {
+	return context.WithValue(ctx, accountTestUserAgentContextKey{}, userAgent)
+}
+
+func accountTestUserAgentFromContext(ctx context.Context) string {
+	userAgent, _ := ctx.Value(accountTestUserAgentContextKey{}).(string)
+	return userAgent
 }
 
 func firstAccountTestOptions(opts []AccountTestOptions) AccountTestOptions {
@@ -365,6 +381,12 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
 
+	// 测试内自定义 UA：从入站请求透传到出站边界（doOpenAIAccountTestUpstream）。
+	if userAgent := strings.TrimSpace(testOpts.UserAgent); userAgent != "" {
+		ctx = withAccountTestUserAgent(ctx, userAgent)
+		c.Request = c.Request.WithContext(ctx)
+	}
+
 	// Get account
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
@@ -462,7 +484,7 @@ func (s *AccountTestService) testOpenCodeGoResponsesConnection(c *gin.Context, a
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
-	return s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken)
+	return s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken, "")
 }
 
 func (s *AccountTestService) testCNProviderChatCompletionsConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
@@ -876,7 +898,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if isOAuth {
 		upstreamTestModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
-	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
+	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth, prompt)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -2754,8 +2776,13 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 	}
 }
 
-// createOpenAITestPayload creates a test payload for OpenAI Responses API
-func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
+// createOpenAITestPayload creates a test payload for OpenAI Responses API.
+// prompt 留空时回落默认的 "hi"（与测试弹窗的历史行为一致）。
+func createOpenAITestPayload(modelID string, isOAuth bool, prompt string) map[string]any {
+	testPrompt := strings.TrimSpace(prompt)
+	if testPrompt == "" {
+		testPrompt = "hi"
+	}
 	payload := map[string]any{
 		"model": modelID,
 		"input": []map[string]any{
@@ -2764,7 +2791,7 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 				"content": []map[string]any{
 					{
 						"type": "input_text",
-						"text": "hi",
+						"text": testPrompt,
 					},
 				},
 			},

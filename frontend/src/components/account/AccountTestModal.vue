@@ -55,6 +55,25 @@
         />
       </div>
 
+      <div v-if="!supportsImageTest" class="space-y-1.5">
+        <TextArea
+          v-model="testPrompt"
+          :label="t('admin.accounts.testPromptLabel')"
+          :placeholder="t('admin.accounts.testPromptPlaceholder')"
+          :hint="t('admin.accounts.testPromptHint')"
+          :disabled="status === 'connecting'"
+          rows="2"
+        />
+      </div>
+
+      <Input
+        v-model="testUserAgent"
+        :label="t('admin.accounts.testUserAgentLabel')"
+        :placeholder="t('admin.accounts.testUserAgentPlaceholder')"
+        :hint="t('admin.accounts.testUserAgentHint')"
+        :disabled="status === 'connecting'"
+      />
+
       <div v-if="isOpenAIAccount" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
           {{ t('admin.accounts.openai.testMode') }}
@@ -189,7 +208,7 @@
           {{
             supportsImageTest
               ? t('admin.accounts.imageTestMode')
-              : t('admin.accounts.testPrompt')
+              : t('admin.accounts.testPrompt', { prompt: testPrompt.trim() || 'hi' })
           }}
         </span>
       </div>
@@ -245,6 +264,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Input from '@/components/common/Input.vue'
 import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
@@ -283,6 +303,8 @@ const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
+// 仅覆盖本次测试请求的出站 UA，不写回账号配置。
+const testUserAgent = ref('')
 const loadingModels = ref(false)
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
@@ -326,6 +348,7 @@ watch(
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
+      testUserAgent.value = ''
       testMode.value = 'default'
       resetState()
       await loadAvailableModels()
@@ -430,7 +453,8 @@ const startTest = async () => {
       },
       body: JSON.stringify({
         model_id: selectedModelId.value,
-        prompt: supportsImageTest.value ? testPrompt.value.trim() : '',
+        prompt: testPrompt.value.trim(),
+        user_agent: testUserAgent.value.trim(),
         mode: isOpenAIAccount.value ? testMode.value : 'default'
       }),
       signal: abortController.signal
