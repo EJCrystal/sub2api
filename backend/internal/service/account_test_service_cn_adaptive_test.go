@@ -290,3 +290,37 @@ func TestAccountTestService_AnthropicProtocol401MarksAccountError(t *testing.T) 
 	repo := svc.accountRepo.(*openAIAccountTestRepo)
 	require.Equal(t, account.ID, repo.setErrorID)
 }
+
+// The Claude-Code-style payload behind the adaptive Anthropic endpoint used to
+// hard-code "hi", so the admin test dialog's prompt input was silently ignored.
+func TestAccountTestService_AdaptiveClaudeStylePayloadUsesPromptAndFallsBackToHi(t *testing.T) {
+	account := adaptiveCNAccountTestAccount(315, PlatformZhipu)
+	svc, upstream := adaptiveCNAccountTestService(
+		account,
+		adaptiveCNChatTestResponse(),
+		adaptiveCNAnthropicTestResponse(),
+	)
+	c, _ := newTestContext()
+
+	err := svc.TestAccountConnection(c, account.ID, "glm-4.7", "probe-prompt", AccountTestModeDefault)
+
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 2)
+	require.Equal(t, "http://anthropic.example/v1/messages", upstream.requests[1].URL.String())
+	require.Equal(t, "probe-prompt", gjson.GetBytes(upstream.bodies[1], "messages.0.content.0.text").String())
+	require.True(t, gjson.GetBytes(upstream.bodies[1], "stream").Bool())
+
+	// Empty prompt still falls back to the default probe text.
+	svcDefault, upstreamDefault := adaptiveCNAccountTestService(
+		account,
+		adaptiveCNChatTestResponse(),
+		adaptiveCNAnthropicTestResponse(),
+	)
+	cDefault, _ := newTestContext()
+
+	err = svcDefault.TestAccountConnection(cDefault, account.ID, "glm-4.7", "", AccountTestModeDefault)
+
+	require.NoError(t, err)
+	require.Len(t, upstreamDefault.requests, 2)
+	require.Equal(t, "hi", gjson.GetBytes(upstreamDefault.bodies[1], "messages.0.content.0.text").String())
+}

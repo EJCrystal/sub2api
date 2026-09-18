@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,6 +71,52 @@ func TestFetchOpenAIAccountModelsAPIKeyPopulatesPickerFields(t *testing.T) {
 	require.Equal(t, "provider", models[0].OwnedBy)
 	require.EqualValues(t, 123, models[0].Created)
 	require.Equal(t, "named-model", models[2].ID)
+}
+
+func TestFetchOpenAIAccountModelsAPIKeyRespectsModelRestriction(t *testing.T) {
+	upstream := func(_ *http.Request, _ string, _ int64, _ int) (*http.Response, error) {
+		return ordinaryModelsUpstreamResponse(`{"data":[
+			{"id":"claude-opus-5","owned_by":"provider"},
+			{"id":"gpt-5.6-sol"},
+			{"id":"gpt-6-astra"},
+			{"id":"deepseek-v4-flash"}
+		]}`), nil
+	}
+	// 上游供了 4 个模型，账号模型限制只允许 2 个（白名单 = identity 映射）→ 下拉只列这 2 个。
+	gateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: upstream})
+	svc := &AccountTestService{openaiGatewayService: gateway}
+	account := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	account.Credentials["model_mapping"] = map[string]any{
+		"gpt-5.6-sol":      "gpt-5.6-sol",
+		"allowed-upstream": "allowed-upstream", // 上游目录里没有，仍须可选
+	}
+	models, err := svc.FetchOpenAIAccountModels(context.Background(), account)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-5.6-sol", "allowed-upstream"}, modelIDs(models))
+
+	// 通配符限制：只留上游命中的条目，且不把字面 "claude-*" 当作可测模型。
+	wildcard := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	wildcard.Credentials["model_mapping"] = map[string]any{"claude-*": "claude-opus-5"}
+	wildcardGateway := newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: upstream})
+	wildcardModels, err := (&AccountTestService{openaiGatewayService: wildcardGateway}).
+		FetchOpenAIAccountModels(context.Background(), wildcard)
+	require.NoError(t, err)
+	require.Equal(t, []string{"claude-opus-5"}, modelIDs(wildcardModels))
+
+	// 无模型限制 = 允许所有模型，列表保持上游全量（行为不变）。
+	open := newCodexModelsAPIKeyTestAccount("https://models.example/v1")
+	openModels, err := (&AccountTestService{openaiGatewayService: newCodexModelsAPIKeyTestService(&codexModelsHTTPUpstreamStub{do: upstream})}).
+		FetchOpenAIAccountModels(context.Background(), open)
+	require.NoError(t, err)
+	require.Len(t, openModels, 4)
+}
+
+func modelIDs(models []openai.Model) []string {
+	ids := make([]string, 0, len(models))
+	for _, model := range models {
+		ids = append(ids, model.ID)
+	}
+	return ids
 }
 
 func TestFetchOpenAIAccountModelsPreservesEmptyCatalog(t *testing.T) {

@@ -98,6 +98,24 @@
         {{ promptInputHint }}
       </p>
 
+      <TextArea
+        v-else-if="!isGrokAccount"
+        v-model="testPrompt"
+        :label="t('admin.accounts.testPromptLabel')"
+        :placeholder="t('admin.accounts.testPromptPlaceholder')"
+        :hint="t('admin.accounts.testPromptHint')"
+        :disabled="status === 'connecting'"
+        rows="2"
+      />
+
+      <Input
+        v-model="testUserAgent"
+        :label="t('admin.accounts.testUserAgentLabel')"
+        :placeholder="t('admin.accounts.testUserAgentPlaceholder')"
+        :hint="t('admin.accounts.testUserAgentHint')"
+        :disabled="status === 'connecting'"
+      />
+
       <!-- Optional media uploads for real generation / transcription -->
       <div v-if="supportsImageUpload" class="space-y-1.5">
         <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -313,7 +331,11 @@
         </div>
         <span class="flex items-center gap-1">
           <Icon name="chat" size="sm" :stroke-width="2" />
-          {{ testModeSummary }}
+          {{
+            usesGenericTestPrompt
+              ? t('admin.accounts.testPrompt', { prompt: testPrompt.trim() || 'hi' })
+              : testModeSummary
+          }}
         </span>
       </div>
     </div>
@@ -370,6 +392,7 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import TextArea from '@/components/common/TextArea.vue'
+import Input from '@/components/common/Input.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { buildApiUrl } from '@/api/client'
@@ -407,6 +430,7 @@ const errorMessage = ref('')
 const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
+const testUserAgent = ref('')
 const loadingModels = ref(false)
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewMedia[]>([])
@@ -507,6 +531,12 @@ const supportsPromptInput = computed(() => {
     grokTestMode.value === 'tts'
   )
 })
+
+// The generic (non-image) prompt box feeds the text probe on every platform.
+// Grok text probes build a quota-check body and ignore the prompt, so no box.
+const usesGenericTestPrompt = computed(
+  () => !isGrokAccount.value && !supportsPromptInput.value
+)
 
 const supportsImageUpload = computed(
   () => isGrokAccount.value && (grokTestMode.value === 'image' || grokTestMode.value === 'video')
@@ -738,9 +768,11 @@ watch(
   async (newVal) => {
     if (newVal && props.account) {
       testPrompt.value = ''
+      testUserAgent.value = ''
       testMode.value = 'default'
       grokTestMode.value = 'text'
       resetState()
+      applyDefaultPromptForMode()
       await loadAvailableModels()
       if (isGrokAccount.value) {
         pickDefaultModelForMode()
@@ -847,12 +879,16 @@ const startTest = async () => {
     const requestBody: {
       model_id: string
       prompt: string
+      user_agent?: string
       mode?: string
       image_data_url?: string
       audio_data_url?: string
     } = {
       model_id: showModelSelect.value ? selectedModelId.value : '',
-      prompt: supportsPromptInput.value ? testPrompt.value.trim() : ''
+      prompt: testPrompt.value.trim()
+    }
+    if (testUserAgent.value.trim()) {
+      requestBody.user_agent = testUserAgent.value.trim()
     }
     if (isOpenAIAccount.value) {
       requestBody.mode = testMode.value
@@ -972,7 +1008,7 @@ const handleEvent = (event: {
                       : t('admin.accounts.sendingTestMessage')
           : supportsImageTest.value
             ? t('admin.accounts.sendingImageRequest')
-            : t('admin.accounts.sendingTestMessage'),
+            : t('admin.accounts.sendingTestMessage', { prompt: testPrompt.value.trim() || 'hi' }),
         'text-gray-400'
       )
       addLine('', 'text-gray-300')

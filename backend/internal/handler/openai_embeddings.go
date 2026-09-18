@@ -224,6 +224,8 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 					)
 					return
 				}
+				// 多 key 池账号：冷却本次使用的上游 key，切换账号/后续请求自动换 key。
+				service.CooldownPooledAPIKey(account.ID, failoverErr.StatusCode)
 				h.gatewayService.RecordOpenAIAccountSwitch()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr

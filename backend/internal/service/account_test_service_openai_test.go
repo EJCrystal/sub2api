@@ -704,3 +704,54 @@ func TestAccountTestService_OpenAIChatCompletionsPathRejectsNonJSONStream(t *tes
 	require.Contains(t, recorder.Body.String(), "/v1/chat/completions")
 	require.NotContains(t, recorder.Body.String(), `"success":true`)
 }
+
+// fixedAccountTestRepo 只实现 GetByID，其余方法用嵌入接口兜住（测试只走读取路径）。
+type fixedAccountTestRepo struct {
+	AccountRepository
+	account *Account
+}
+
+func (r *fixedAccountTestRepo) GetByID(_ context.Context, _ int64) (*Account, error) {
+	return r.account, nil
+}
+
+func TestAccountTestService_OpenAITestPromptAndUserAgent(t *testing.T) {
+	// 提示词：留空沿用历史默认 "hi"，自定义时进 Responses payload。
+	require.Equal(t, "hi", gjson.Get(mustJSON(t, createOpenAITestPayload("gpt-5.4", false, "")), "input.0.content.0.text").String())
+	require.Equal(t, "ping", gjson.Get(mustJSON(t, createOpenAITestPayload("gpt-5.4", false, "ping")), "input.0.content.0.text").String())
+
+	gin.SetMode(gin.TestMode)
+	ctx, _ := newTestContext()
+
+	resp := newJSONResponse(http.StatusOK, "")
+	resp.Body = io.NopCloser(strings.NewReader("data: {\"type\":\"response.completed\"}\n\n"))
+	upstream := &queuedHTTPUpstream{responses: []*http.Response{resp}}
+	account := &Account{
+		ID:          97,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Concurrency: 1,
+		Credentials: map[string]any{
+			"api_key":  "sk-test",
+			"base_url": "https://compat-upstream.example/v1",
+		},
+		Extra: map[string]any{openai_compat.ExtraKeyResponsesSupported: true},
+	}
+	svc := &AccountTestService{
+		accountRepo:  &fixedAccountTestRepo{account: account},
+		httpUpstream: upstream,
+		cfg:          &config.Config{Security: config.SecurityConfig{URLAllowlist: config.URLAllowlistConfig{Enabled: false}}},
+	}
+
+	// 走 TestAccountConnection（而非直接调内部函数），确保 options → ctx → 出站边界整条链生效。
+	err := svc.TestAccountConnection(ctx, account.ID, "gpt-5.4", "ping", "",
+		AccountTestOptions{UserAgent: "agentrouter-probe/1.0 (test)"})
+	require.NoError(t, err)
+	require.Len(t, upstream.requests, 1)
+	req := upstream.requests[0]
+	require.Equal(t, "agentrouter-probe/1.0 (test)", req.Header.Get("User-Agent"), "自定义 UA 必须覆盖账号级/默认身份")
+
+	body, err := io.ReadAll(req.Body)
+	require.NoError(t, err)
+	require.Equal(t, "ping", gjson.GetBytes(body, "input.0.content.0.text").String(), "自定义提示词必须进 Responses payload")
+}

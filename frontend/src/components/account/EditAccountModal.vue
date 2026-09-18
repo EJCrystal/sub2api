@@ -206,9 +206,9 @@
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
-          <input
+          <textarea
             v-model="editApiKey"
-            type="password"
+            rows="2"
             class="input font-mono"
             autocomplete="new-password"
             data-1p-ignore
@@ -227,6 +227,7 @@
             "
           />
           <p class="input-hint">{{ t('admin.accounts.leaveEmptyToKeep') }}</p>
+          <p class="input-hint">{{ t('admin.accounts.multiApiKeysHint') }}</p>
         </div>
 
         <!-- Model Restriction Section (不适用于 Antigravity) -->
@@ -3024,6 +3025,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 
 import { adminAPI } from '@/api/admin'
+import { parseApiKeysInput } from '@/utils/parseApiKeys'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import type {
   Account,
@@ -3348,6 +3350,11 @@ const MAX_POOL_MODE_RETRY_COUNT = 10
 const DEFAULT_POOL_MODE_RETRY_STATUS_CODES = [401, 403, 429]
 const GROK_CLIENT_TOOL_CACHE_EXTRA_KEY = 'grok_client_tool_cache_enabled'
 const poolModeEnabled = ref(false)
+// 多 Key 池：输入多个 Key 时自动启用池模式，令上游错误在同一账号内重试以切换 Key。
+const parsedEditApiKeys = computed(() => parseApiKeysInput(editApiKey.value))
+watch(parsedEditApiKeys, (keys) => {
+  if (keys.length > 1) poolModeEnabled.value = true
+})
 const poolModeRetryCount = ref(DEFAULT_POOL_MODE_RETRY_COUNT)
 const poolModeRetryStatusCodesInput = ref('')
 
@@ -5045,7 +5052,11 @@ const handleSubmit = async () => {
       const hasExistingApiKey =
         props.account.credentials_status?.has_api_key ?? Boolean(currentCredentials.api_key)
       if (editApiKey.value.trim()) {
-        newCredentials.api_key = editApiKey.value.trim()
+        // 多 Key 支持：一行一个；写入 api_keys 池（含单个时也写，便于从多 Key 收敛回单 Key），
+        // api_key 始终同步首个 Key 以兼容旧读取路径。
+        const keys = parseApiKeysInput(editApiKey.value)
+        newCredentials.api_key = keys[0]
+        newCredentials.api_keys = keys
       } else if (!hasExistingApiKey) {
         appStore.showError(t('admin.accounts.apiKeyIsRequired'))
         return

@@ -26,6 +26,11 @@ func (s *AccountTestService) doOpenAIAccountTestUpstream(
 	account *Account,
 	useTLSFallback bool,
 ) (*http.Response, error) {
+	// 测试内自定义 UA：管理员在弹窗里指定时覆盖账号级/默认身份，仅影响本次测试请求。
+	// 放在出站边界，OpenAI 各测试路径（Responses / chat completions / compact）一次收口。
+	if userAgent := accountTestUserAgentFromContext(request.Context()); userAgent != "" {
+		request.Header.Set("User-Agent", userAgent)
+	}
 	if s.pluginManager != nil {
 		response, handled, err := s.pluginManager.RoundTripOpenAIOAuth(request.Context(), request, proxyURL, account)
 		if handled {

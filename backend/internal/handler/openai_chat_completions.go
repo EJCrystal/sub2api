@@ -337,6 +337,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
+					// 多 key 池账号：冷却本次使用的上游 key，重试/后续请求自动换 key。
+					service.CooldownPooledAPIKey(account.ID, failoverErr.StatusCode)
 					// Pool mode: retry on the same account
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := effectiveSameAccountRetryLimit(failoverErr, account)

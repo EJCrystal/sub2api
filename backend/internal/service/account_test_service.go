@@ -70,6 +70,22 @@ type TestEvent struct {
 type AccountTestOptions struct {
 	ImageDataURL string
 	AudioDataURL string
+	// UserAgent 是管理员在测试弹窗里临时指定的出站 User-Agent（不落库、只影响本次测试），
+	// 用于在保存到账号 header_overrides 之前先验证上游按客户端 UA 的门控。
+	UserAgent string
+}
+
+// accountTestUserAgentContextKey 让 UserAgent 覆盖能穿过各平台测试函数直达出站边界，
+// 避免为它改一圈函数签名（与 agentIdentityTaskRecovery 的 ctx 传参方式一致）。
+type accountTestUserAgentContextKey struct{}
+
+func withAccountTestUserAgent(ctx context.Context, userAgent string) context.Context {
+	return context.WithValue(ctx, accountTestUserAgentContextKey{}, userAgent)
+}
+
+func accountTestUserAgentFromContext(ctx context.Context) string {
+	userAgent, _ := ctx.Value(accountTestUserAgentContextKey{}).(string)
+	return userAgent
 }
 
 func firstAccountTestOptions(opts []AccountTestOptions) AccountTestOptions {
@@ -227,6 +243,36 @@ func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, accou
 			}
 		}
 	}
+	// API-key 账号配置了「模型限制」（model_mapping 白名单/映射）时，测试下拉只列该账号
+	// 实际允许的模型：上游目录里限制外的模型被测到会通过，线上转发却必然被拒，两边列表
+	// 因而"不一致"。映射的请求侧模型名上游目录里可能没有，一并补上，避免下拉被清空。
+	// OAuth 账号不改：其列表来自 Codex manifest，白名单只作为附加过滤（见上方图片模型处理）。
+	if account.Type == AccountTypeAPIKey {
+		if mapping := account.GetModelMapping(); len(mapping) > 0 {
+			filtered := make([]openai.Model, 0, len(payload.Data))
+			seen := make(map[string]bool, len(payload.Data))
+			for _, model := range payload.Data {
+				if !account.IsModelSupported(model.ID) {
+					continue
+				}
+				seen[model.ID] = true
+				filtered = append(filtered, model)
+			}
+			for requested := range mapping {
+				if seen[requested] || strings.Contains(requested, "*") {
+					continue
+				}
+				filtered = append(filtered, openai.Model{
+					ID:          requested,
+					Object:      "model",
+					Type:        "model",
+					OwnedBy:     "openai",
+					DisplayName: openaiCodexDisplayName(requested),
+				})
+			}
+			payload.Data = filtered
+		}
+	}
 	return payload.Data, nil
 }
 
@@ -286,10 +332,15 @@ func generateSessionString() (string, error) {
 }
 
 // createTestPayload creates a Claude Code style test request payload
-func createTestPayload(modelID string) (map[string]any, error) {
+func createTestPayload(modelID string, prompt string) (map[string]any, error) {
 	sessionID, err := generateSessionString()
 	if err != nil {
 		return nil, err
+	}
+
+	testPrompt := strings.TrimSpace(prompt)
+	if testPrompt == "" {
+		testPrompt = "hi"
 	}
 
 	return map[string]any{
@@ -300,7 +351,7 @@ func createTestPayload(modelID string) (map[string]any, error) {
 				"content": []map[string]any{
 					{
 						"type": "text",
-						"text": "hi",
+						"text": testPrompt,
 						"cache_control": map[string]string{
 							"type": "ephemeral",
 						},
@@ -335,6 +386,12 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 	ctx := c.Request.Context()
 	testOpts := firstAccountTestOptions(opts)
 
+	// 测试内自定义 UA：从入站请求透传到出站边界（doOpenAIAccountTestUpstream）。
+	if userAgent := strings.TrimSpace(testOpts.UserAgent); userAgent != "" {
+		ctx = withAccountTestUserAgent(ctx, userAgent)
+		c.Request = c.Request.WithContext(ctx)
+	}
+
 	// Get account
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
@@ -365,7 +422,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		case APIProtocolChatCompletions:
 			return s.testCNProviderChatCompletionsConnection(c, account, modelID, prompt)
 		case APIProtocolAnthropic:
-			return s.testCNProviderAnthropicConnection(c, account, modelID)
+			return s.testCNProviderAnthropicConnection(c, account, modelID, prompt)
 		}
 	}
 
@@ -389,7 +446,7 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return s.testOpenCodeGoAccountConnection(c, account, modelID, prompt)
 	}
 
-	return s.testClaudeAccountConnection(c, account, modelID)
+	return s.testClaudeAccountConnection(c, account, modelID, prompt)
 }
 
 // testOpenCodeGoAccountConnection probes the native endpoint for the selected
@@ -413,7 +470,7 @@ func (s *AccountTestService) testOpenCodeGoAccountConnection(c *gin.Context, acc
 	}
 	switch proto {
 	case APIProtocolAnthropic:
-		return s.testCNProviderAnthropicConnection(c, account, testModelID)
+		return s.testCNProviderAnthropicConnection(c, account, testModelID, prompt)
 	case APIProtocolResponses:
 		return s.testOpenCodeGoResponsesConnection(c, account, testModelID)
 	default:
@@ -432,7 +489,7 @@ func (s *AccountTestService) testOpenCodeGoResponsesConnection(c *gin.Context, a
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 	s.sendEvent(c, TestEvent{Type: "test_start", Model: testModelID})
-	return s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken)
+	return s.testCNProviderAdaptiveResponsesConnection(c, account, testModelID, authToken, "")
 }
 
 func (s *AccountTestService) testCNProviderChatCompletionsConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
@@ -457,7 +514,7 @@ func (s *AccountTestService) testCNProviderChatCompletionsConnection(c *gin.Cont
 }
 
 // testClaudeAccountConnection tests an Anthropic Claude account's connection
-func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string) error {
+func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account *Account, modelID string, prompt string) error {
 	ctx := c.Request.Context()
 
 	// Determine the model to use
@@ -516,7 +573,7 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	c.Writer.Flush()
 
 	// Create Claude Code style payload (same for all account types)
-	payload, err := createTestPayload(testModelID)
+	payload, err := createTestPayload(testModelID, prompt)
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
@@ -581,6 +638,10 @@ func (s *AccountTestService) testClaudeAccountConnection(c *gin.Context, account
 	return s.processClaudeStream(c, resp.Body)
 }
 
+// testClaudeVertexServiceAccountConnection tests a Claude Vertex service-account
+// account. The probe prompt is not forwarded: this path authenticates through a
+// token provider rather than the account's own API key, so the prompt stays the
+// default "hi".
 func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Context, ctx context.Context, account *Account, testModelID string) error {
 	if mappedModel, matched := account.ResolveMappedModel(testModelID); matched {
 		testModelID = mappedModel
@@ -594,7 +655,7 @@ func (s *AccountTestService) testClaudeVertexServiceAccountConnection(c *gin.Con
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.Flush()
 
-	payload, err := createTestPayload(testModelID)
+	payload, err := createTestPayload(testModelID, "")
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Failed to create test payload")
 	}
@@ -846,7 +907,7 @@ func (s *AccountTestService) testOpenAIAccountConnection(c *gin.Context, account
 	if isOAuth {
 		upstreamTestModelID = normalizeOpenAIModelForUpstream(credentialAccount, testModelID)
 	}
-	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth)
+	payload := createOpenAITestPayload(upstreamTestModelID, isOAuth, prompt)
 	payloadBytes, _ := json.Marshal(payload)
 
 	// Send test_start event once. A task-invalid Agent Identity response may
@@ -2415,7 +2476,7 @@ func (s *AccountTestService) routeAntigravityTest(c *gin.Context, account *Accou
 		if strings.HasPrefix(modelID, "gemini-") {
 			return s.testGeminiAccountConnection(c, account, modelID, prompt)
 		}
-		return s.testClaudeAccountConnection(c, account, modelID)
+		return s.testClaudeAccountConnection(c, account, modelID, prompt)
 	}
 	return s.testAntigravityAccountConnection(c, account, modelID)
 }
@@ -2724,8 +2785,13 @@ func (s *AccountTestService) processGeminiStream(c *gin.Context, body io.Reader)
 	}
 }
 
-// createOpenAITestPayload creates a test payload for OpenAI Responses API
-func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
+// createOpenAITestPayload creates a test payload for OpenAI Responses API.
+// prompt 留空时回落默认的 "hi"（与测试弹窗的历史行为一致）。
+func createOpenAITestPayload(modelID string, isOAuth bool, prompt string) map[string]any {
+	testPrompt := strings.TrimSpace(prompt)
+	if testPrompt == "" {
+		testPrompt = "hi"
+	}
 	payload := map[string]any{
 		"model": modelID,
 		"input": []map[string]any{
@@ -2734,7 +2800,7 @@ func createOpenAITestPayload(modelID string, isOAuth bool) map[string]any {
 				"content": []map[string]any{
 					{
 						"type": "input_text",
-						"text": "hi",
+						"text": testPrompt,
 					},
 				},
 			},

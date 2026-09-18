@@ -216,6 +216,8 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 			)
 			return
 		}
+		// 多 key 池账号：冷却本次使用的上游 key，重试/后续请求自动换 key。
+		service.CooldownPooledAPIKey(account.ID, failoverErr.StatusCode)
 		if failoverErr.RetryableOnSameAccount {
 			retryLimit := account.GetPoolModeRetryCount()
 			if sameAccountRetryAllowed(failoverErr, sameAccountRetryCount[account.ID], retryLimit) {
