@@ -885,7 +885,7 @@ const startTest = async () => {
       audio_data_url?: string
     } = {
       model_id: showModelSelect.value ? selectedModelId.value : '',
-      prompt: supportsPromptInput.value ? testPrompt.value.trim() : ''
+      prompt: testPrompt.value.trim()
     }
     if (testUserAgent.value.trim()) {
       requestBody.user_agent = testUserAgent.value.trim()
@@ -1008,7 +1008,7 @@ const handleEvent = (event: {
                       : t('admin.accounts.sendingTestMessage')
           : supportsImageTest.value
             ? t('admin.accounts.sendingImageRequest')
-            : t('admin.accounts.sendingTestMessage'),
+            : t('admin.accounts.sendingTestMessage', { prompt: testPrompt.value.trim() || 'hi' }),
         'text-gray-400'
       )
       addLine('', 'text-gray-300')

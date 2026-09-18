@@ -36,6 +36,9 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.imagePreviewAlt' && params?.index) {
           return `test-image-${params.index}`
         }
+        if (key === 'admin.accounts.sendingTestMessage' && params?.prompt) {
+          return `sending:${params.prompt}`
+        }
         return messages[key] || key
       }
     })
@@ -219,5 +222,45 @@ describe('AccountTestModal', () => {
       prompt: '',
       mode: 'compact'
     })
+  })
+})
+
+  it('文本测试把自定义提示词发给上游并在终端回显（非生图模型）', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'deepseek-v4-flash', display_name: 'DeepSeek V4 Flash' }
+    ])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"deepseek-v4-flash"}\n',
+        'data: {"type":"content","text":"ok"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal({
+      id: 6184,
+      name: 'OpenAI-AgentRouter',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active'
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('Please help me polish the following sentence')
+
+    const startButton = wrapper.findAll('button').find((b) => b.text().includes('admin.accounts.startTest'))
+    await startButton!.trigger('click')
+    await flushPromises()
+
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toMatchObject({
+      model_id: 'deepseek-v4-flash',
+      prompt: 'Please help me polish the following sentence',
+      mode: 'default'
+    })
+    expect(wrapper.text()).toContain('sending:Please help me polish the following sentence')
   })
 })
