@@ -227,6 +227,36 @@ func (s *AccountTestService) FetchOpenAIAccountModels(ctx context.Context, accou
 			}
 		}
 	}
+	// API-key 账号配置了「模型限制」（model_mapping 白名单/映射）时，测试下拉只列该账号
+	// 实际允许的模型：上游目录里限制外的模型被测到会通过，线上转发却必然被拒，两边列表
+	// 因而"不一致"。映射的请求侧模型名上游目录里可能没有，一并补上，避免下拉被清空。
+	// OAuth 账号不改：其列表来自 Codex manifest，白名单只作为附加过滤（见上方图片模型处理）。
+	if account.Type == AccountTypeAPIKey {
+		if mapping := account.GetModelMapping(); len(mapping) > 0 {
+			filtered := make([]openai.Model, 0, len(payload.Data))
+			seen := make(map[string]bool, len(payload.Data))
+			for _, model := range payload.Data {
+				if !account.IsModelSupported(model.ID) {
+					continue
+				}
+				seen[model.ID] = true
+				filtered = append(filtered, model)
+			}
+			for requested := range mapping {
+				if seen[requested] || strings.Contains(requested, "*") {
+					continue
+				}
+				filtered = append(filtered, openai.Model{
+					ID:          requested,
+					Object:      "model",
+					Type:        "model",
+					OwnedBy:     "openai",
+					DisplayName: openaiCodexDisplayName(requested),
+				})
+			}
+			payload.Data = filtered
+		}
+	}
 	return payload.Data, nil
 }
 
