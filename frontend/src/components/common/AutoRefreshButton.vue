@@ -1,9 +1,10 @@
 <template>
-  <div class="relative" ref="dropdownRef">
+  <div class="relative inline-flex" ref="dropdownRef">
     <button
-      @click="showDropdown = !showDropdown"
-      class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
-      :title="t('common.autoRefresh.title')"
+      type="button"
+      @click="$emit('refresh')"
+      class="inline-flex items-center gap-1.5 rounded-l-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700"
+      :title="t('common.refresh')"
     >
       <svg
         class="h-3.5 w-3.5"
@@ -14,10 +15,21 @@
       </svg>
       <span>
         {{ enabled
-          ? t('common.autoRefresh.countdown', { seconds: countdown })
-          : t('common.autoRefresh.title')
+          ? t('common.autoRefresh.countdown', { seconds: intervalSeconds })
+          : t('common.refresh')
         }}
       </span>
+    </button>
+
+    <button
+      type="button"
+      @click="showDropdown = !showDropdown"
+      class="inline-flex items-center rounded-r-lg border border-l-0 border-gray-200 bg-white px-1.5 py-1.5 text-gray-500 shadow-sm transition-colors hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:bg-dark-700"
+      :title="t('common.autoRefresh.title')"
+    >
+      <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 011.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+      </svg>
     </button>
 
     <div
@@ -63,6 +75,7 @@ defineProps<{
 }>()
 
 defineEmits<{
+  (e: 'refresh'): void
   (e: 'update:enabled', value: boolean): void
   (e: 'update:interval', value: number): void
 }>()

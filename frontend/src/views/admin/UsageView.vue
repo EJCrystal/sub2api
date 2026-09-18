@@ -90,6 +90,7 @@
               :interval-seconds="autoRefresh.intervalSeconds.value"
               :countdown="autoRefresh.countdown.value"
               :intervals="autoRefresh.intervals"
+              @refresh="refreshData"
               @update:enabled="autoRefresh.setEnabled"
               @update:interval="autoRefresh.setInterval"
             />

@@ -131,12 +131,10 @@
               :interval-seconds="autoRefresh.intervalSeconds.value"
               :countdown="autoRefresh.countdown.value"
               :intervals="autoRefresh.intervals"
+              @refresh="refreshData"
               @update:enabled="autoRefresh.setEnabled"
               @update:interval="autoRefresh.setInterval"
             />
-            <button type="button" @click="refreshData" :disabled="activeTab === 'errors' ? errorLoading : loading" class="btn btn-secondary">
-              {{ t('common.refresh') }}
-            </button>
             <button type="button" @click="resetFilters" class="btn btn-secondary">
               {{ t('common.reset') }}
             </button>
