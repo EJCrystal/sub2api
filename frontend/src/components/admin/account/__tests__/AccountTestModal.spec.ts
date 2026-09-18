@@ -223,9 +223,8 @@ describe('AccountTestModal', () => {
       mode: 'compact'
     })
   })
-})
 
-  it('文本测试把自定义提示词发给上游并在终端回显（非生图模型）', async () => {
+  it('文本测试留空提示词交给全局设置，并显示全局提示词提示', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'deepseek-v4-flash', display_name: 'DeepSeek V4 Flash' }
     ])
@@ -247,20 +246,21 @@ describe('AccountTestModal', () => {
     await wrapper.setProps({ show: true })
     await flushPromises()
 
-    const promptInput = wrapper.find('textarea.textarea-stub')
-    expect(promptInput.exists()).toBe(true)
-    await promptInput.setValue('Please help me polish the following sentence')
+    expect(wrapper.find('textarea.textarea-stub').exists()).toBe(false)
+    expect(wrapper.text()).toContain('admin.accounts.globalTestPromptInUse')
+    expect(wrapper.text()).toContain('admin.accounts.globalTestPromptBadge')
 
     const startButton = wrapper.findAll('button').find((b) => b.text().includes('admin.accounts.startTest'))
     await startButton!.trigger('click')
     await flushPromises()
 
+    expect(global.fetch).toHaveBeenCalledTimes(1)
     const [, request] = (global.fetch as any).mock.calls[0]
     expect(JSON.parse(request.body)).toMatchObject({
       model_id: 'deepseek-v4-flash',
-      prompt: 'Please help me polish the following sentence',
+      prompt: '',
       mode: 'default'
     })
-    expect(wrapper.text()).toContain('sending:Please help me polish the following sentence')
+    expect(wrapper.text()).toContain('admin.accounts.sendingGlobalTestPrompt')
   })
 })

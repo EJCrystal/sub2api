@@ -116,9 +116,9 @@ type pooledAPIKeyPick struct {
 
 type pooledAPIKeyPoolState struct {
 	mu       sync.Mutex
-	counter  map[int64]uint64                     // accountID -> 轮换计数
-	lastPick map[int64]pooledAPIKeyPick           // accountID -> 最近一次选中的 key 与时间
-	cooldown map[int64]map[string]time.Time       // accountID -> key -> 冷却截止
+	counter  map[int64]uint64               // accountID -> 轮换计数
+	lastPick map[int64]pooledAPIKeyPick     // accountID -> 最近一次选中的 key 与时间
+	cooldown map[int64]map[string]time.Time // accountID -> key -> 冷却截止
 }
 
 var pooledAPIKeyState = &pooledAPIKeyPoolState{

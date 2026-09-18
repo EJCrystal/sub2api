@@ -7,6 +7,9 @@ FRONTEND_CRITICAL_VITEST := \
 	src/api/__tests__/keys.bulkUpdate.spec.ts \
 	src/components/keys/__tests__/BulkEditKeysModal.spec.ts \
 	src/views/user/__tests__/KeysView.spec.ts \
+	src/components/admin/account/__tests__/AccountTestModal.spec.ts \
+	src/composables/__tests__/useAutoRefresh.spec.ts \
+	src/utils/__tests__/parseApiKeys.spec.ts \
 	src/api/__tests__/channelMonitorV2.spec.ts \
 	src/views/auth/__tests__/LinuxDoCallbackView.spec.ts \
 	src/views/auth/__tests__/WechatCallbackView.spec.ts \
