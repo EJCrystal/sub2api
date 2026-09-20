@@ -307,7 +307,7 @@ jobs:
 
       # Send Telegram notification
       - name: Send Telegram Notification
-        if: ${{ env.DRY_RUN != 'true' && env.SIMPLE_RELEASE != 'true' }}
+        if: ${{ env.DRY_RUN != 'true' && env.SIMPLE_RELEASE != 'true' && github.repository == 'Wei-Shaw/sub2api' }}
         env:
           TAG_MESSAGE: ${{ steps.tag_message.outputs.message }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -377,7 +377,8 @@ jobs:
 
   sync-version-file:
     needs: [prepare, release]
-    if: ${{ needs.release.result == 'success' && needs.prepare.outputs.dry_run != 'true' }}
+    # The fork commits VERSION before tagging; older releases must never overwrite it.
+    if: ${{ needs.release.result == 'success' && needs.prepare.outputs.dry_run != 'true' && github.repository != 'EJCrystal/sub2api' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
